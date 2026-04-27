@@ -1,12 +1,12 @@
-import { Triangle, HashTableL1 } from "./level1.js";
+import { Segment, HashTableL1 } from "./level1.js";
 
 export class HashTableL2 extends HashTableL1 {
   constructor(size: number) {
     super(size);
   }
 
-  public insert(item: Triangle): boolean {
-    const hPrime = this.hash(item.getPerimeter());
+  public insert(item: Segment): boolean {
+    const hPrime = this.hash(item.getLength());
     for (let i = 0; i < this.size; i++) {
       const h = (hPrime + i * i) % this.size;
       if (this.table[h] === null) {

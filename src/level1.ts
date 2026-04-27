@@ -5,98 +5,65 @@ export class Point {
   ) {}
 }
 
-function dist(a: Point, b: Point): number {
-  return Math.hypot(a.x - b.x, a.y - b.y);
-}
-
-function triangleAreaSigned(a: Point, b: Point, c: Point): number {
-  return 0.5 * ((b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x));
-}
-
-export class Triangle {
+export class Segment {
   constructor(
-    public a: Point,
-    public b: Point,
-    public c: Point,
+    public start: Point,
+    public end: Point,
   ) {
-    const areaAbs = Math.abs(triangleAreaSigned(a, b, c));
-    if (areaAbs < 1e-9) {
+    if (Math.abs(start.x - end.x) < 1e-9 && Math.abs(start.y - end.y) < 1e-9) {
       throw new Error(
-        "Трикутник вироджений (точки колінеарні або збігаються).",
+        "Відрізок вироджений: початкова і кінцева точки збігаються.",
       );
     }
   }
 
-  static generateRandom(): Triangle {
+  static generateRandom(): Segment {
     const rnd = () => Math.floor(Math.random() * 100);
     while (true) {
       try {
-        return new Triangle(
-          new Point(rnd(), rnd()),
-          new Point(rnd(), rnd()),
-          new Point(rnd(), rnd()),
-        );
+        return new Segment(new Point(rnd(), rnd()), new Point(rnd(), rnd()));
       } catch {}
     }
   }
 
-  getPerimeter(): number {
-    return dist(this.a, this.b) + dist(this.b, this.c) + dist(this.c, this.a);
+  getLength(): number {
+    return Math.hypot(this.end.x - this.start.x, this.end.y - this.start.y);
   }
 
-  getArea(): number {
-    return Math.abs(triangleAreaSigned(this.a, this.b, this.c));
-  }
-
-  getAngles(): [number, number, number] {
-    const ab = dist(this.a, this.b);
-    const bc = dist(this.b, this.c);
-    const ca = dist(this.c, this.a);
-
-    const angleA = Triangle.safeAcosDeg(
-      (ab * ab + ca * ca - bc * bc) / (2 * ab * ca),
-    );
-    const angleB = Triangle.safeAcosDeg(
-      (ab * ab + bc * bc - ca * ca) / (2 * ab * bc),
-    );
-    const angleC = 180 - angleA - angleB;
-
-    return [angleA, angleB, angleC];
-  }
-
-  getMaxAngle(): number {
-    const [A, B, C] = this.getAngles();
-    return Math.max(A, B, C);
-  }
-
-  private static safeAcosDeg(x: number): number {
-    const clamped = Math.min(1, Math.max(-1, x));
-    return (Math.acos(clamped) * 180) / Math.PI;
+  getAngleWithOX(): number {
+    const dx = this.end.x - this.start.x;
+    const dy = this.end.y - this.start.y;
+    return (Math.atan2(dy, dx) * 180) / Math.PI;
   }
 
   toString(): string {
-    const [A, B, C] = this.getAngles();
-    return `Трикутник[(${this.a.x},${this.a.y})-(${this.b.x},${this.b.y})-(${this.c.x},${this.c.y})], 
-    S:${this.getArea().toFixed(2)}, P:${this.getPerimeter().toFixed(2)}, кути:${A.toFixed(1)}°/${B.toFixed(1)}°/${C.toFixed(1)}°`;
+    return (
+      `Відрізок[(${this.start.x},${this.start.y})→(${this.end.x},${this.end.y})]` +
+      `, L:${this.getLength().toFixed(2)}` +
+      `, кут:${this.getAngleWithOX().toFixed(2)}°`
+    );
   }
 }
 
 export class HashTableL1 {
-  protected table: (Triangle | null)[];
+  protected table: (Segment | null)[];
   protected size: number;
 
+  private static readonly KnuthConst = (Math.sqrt(5) - 1) / 2;
+
   constructor(size: number) {
+    if (size < 1) throw new Error("Розмір таблиці має бути > 0");
     this.size = size;
     this.table = new Array(size).fill(null);
   }
 
   protected hash(key: number): number {
-    const intKey = Math.floor(key);
-    return ((intKey % this.size) + this.size) % this.size;
+    const frac = (key * HashTableL1.KnuthConst) % 1;
+    return Math.floor(this.size * frac);
   }
 
-  public insert(item: Triangle): boolean {
-    const h = this.hash(item.getPerimeter());
+  public insert(item: Segment): boolean {
+    const h = this.hash(item.getLength());
     if (this.table[h] === null) {
       this.table[h] = item;
       return true;
@@ -106,18 +73,22 @@ export class HashTableL1 {
 
   public print(title: string): void {
     console.log(`\n--- ${title} ---`);
-    console.log("idx | key(P)      | element");
-    console.log("----+------------+------------------------------");
+    console.log("idx | key(L)      | елемент");
+    console.log("----+-------------+------------------------------");
     for (let i = 0; i < this.size; i++) {
       const item = this.table[i];
       if (!item) {
-        console.log(`${i.toString().padEnd(3)} | ${"-".padEnd(10)} | Порожньо`);
+        console.log(`${pad(i, 3)} | ${"-".padEnd(11)} | Порожньо`);
       } else {
-        const key = item.getPerimeter();
+        const key = item.getLength();
         console.log(
-          `${i.toString().padEnd(3)} | ${key.toFixed(2).padEnd(10)} | ${item.toString()}`,
+          `${pad(i, 3)} | ${key.toFixed(4).padEnd(11)} | ${item.toString()}`,
         );
       }
     }
   }
+}
+
+function pad(n: number, width: number): string {
+  return n.toString().padEnd(width);
 }
